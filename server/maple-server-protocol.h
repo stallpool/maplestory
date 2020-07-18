@@ -1,13 +1,12 @@
 /*
- * ws protocol handler plugin for "lws-minimal-server-echo"
- *
- * Written in 2010-2019 by Andy Green <andy@warmcat.com>
- *
- * This file is made available under the Creative Commons CC0 1.0
- * Universal Public Domain Dedication.
- *
- * The protocol shows how to send and receive bulk messages over a ws connection
- * that optionally may have the permessage-deflate extension negotiated on it.
+ copied:
+   - protocol_lws_minimal_server_echo.c
+   - written in 2010-2019 by Andy Green <andy@warmcat.com>
+   - license: Creative Commons CC0 1.0 Universal Public Domain Dedication
+   - ref: https://github.com/warmcat/libwebsockets/blob/master/minimal-examples/ws-server/minimal-ws-server-echo
+
+ modified:
+   - entry for MapleStory websocket API
  */
 
 #if !defined (LWS_PLUGIN_STATIC)
@@ -231,3 +230,35 @@ callback_minimal_server_echo(struct lws *wsi, enum lws_callback_reasons reason,
 		0, NULL, 0 \
 	}
 
+#if !defined (LWS_PLUGIN_STATIC)
+
+/* boilerplate needed if we are built as a dynamic plugin */
+
+static const struct lws_protocols protocols[] = {
+	LWS_PLUGIN_PROTOCOL_MINIMAL_SERVER_ECHO
+};
+
+int
+init_protocol_minimal_server_echo(struct lws_context *context,
+			       struct lws_plugin_capability *c)
+{
+	if (c->api_magic != LWS_PLUGIN_API_MAGIC) {
+		lwsl_err("Plugin API %d, library API %d", LWS_PLUGIN_API_MAGIC,
+			 c->api_magic);
+		return 1;
+	}
+
+	c->protocols = protocols;
+	c->count_protocols = LWS_ARRAY_SIZE(protocols);
+	c->extensions = NULL;
+	c->count_extensions = 0;
+
+	return 0;
+}
+
+int
+destroy_protocol_minimal_server_echo(struct lws_context *context)
+{
+	return 0;
+}
+#endif
