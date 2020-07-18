@@ -4,3 +4,6 @@
 [submodule "server/libwebsockets"]
 	path = server/libwebsockets
 	url = https://github.com/dna2fork/libwebsockets
+[submodule "server/libuv"]
+	path = server/libuv
+	url = https://github.com/dna2fork/libuv
