@@ -18,22 +18,22 @@ static int port = 12020, options;
 static const struct lws_protocol_vhost_options pvo_options = {
 	NULL,
 	NULL,
-	"options",		/* pvo name */
-	(void *)&options	/* pvo value */
+	"options",       /* pvo name */
+	(void *)&options /* pvo value */
 };
 
 static const struct lws_protocol_vhost_options pvo_interrupted = {
 	&pvo_options,
 	NULL,
-	"interrupted",		/* pvo name */
-	(void *)&interrupted	/* pvo value */
+	"interrupted",       /* pvo name */
+	(void *)&interrupted /* pvo value */
 };
 
 static const struct lws_protocol_vhost_options pvo = {
-	NULL,				/* "next" pvo linked-list */
-	&pvo_interrupted,		/* "child" pvo linked-list */
-	"lws-minimal-server-echo",	/* protocol name we belong to on this vhost */
-	""				/* ignored */
+	NULL,                      /* "next" pvo linked-list */
+	&pvo_interrupted,          /* "child" pvo linked-list */
+	"lws-minimal-server-echo", /* protocol name we belong to on this vhost */
+	""                         /* ignored */
 };
 static const struct lws_extension extensions[] = {
 	{
@@ -67,8 +67,9 @@ int main(int argc, const char **argv)
 	if (lws_cmdline_option(argc, argv, "-h")) {
 		printf(
 			"maple-server    MapleStory World server\n\n"
-			"usage: maple-server [-d logDirectory] [-p port] [-n]\n"
+			"usage: maple-server [-d logDirectory] [-p port] [-n] [-b wz_base_dir]\n"
 			"	-n   run without extensions\n"
+			"	-b   wz resource base directory path\n"
 		);
 		return 1;
 	}
@@ -84,6 +85,11 @@ int main(int argc, const char **argv)
 
 	if ((p = lws_cmdline_option(argc, argv, "-p"))) {
 		port = atoi(p);
+	}
+
+	if ((p = lws_cmdline_option(argc, argv, "-b"))) {
+		maple_global_server_config.wz_base_dir = p;
+		lwsl_user("wz resource base directory: %s\n", p);
 	}
 
 	memset(&info, 0, sizeof info); /* otherwise uninitialized garbage */

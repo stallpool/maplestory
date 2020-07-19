@@ -67,18 +67,22 @@ maple_json_array_node(wznode * node) {
 	wznode * cur;
 	const char * name;
 	wz_uint32_t len, i;
-	unsigned int name_len;
+	unsigned int name_len, notfirst;
 	maple_string * json = maple_string_alloc();
 	maple_string_append_charstar(json, "{\"type\":\"array\",\"data\":[", 24);
 	wz_get_len(&len, node);
+	notfirst = 0;
 	for (i = 0; i < len; i ++) {
 		cur = wz_open_node_at(node, i);
+		if (!cur) continue;
 		name = wz_get_name(cur);
 		// TODO: normalize json string
 		name_len = strlen(name);
 		if (name_len > 0) {
-			if (i > 0) {
+			if (notfirst) {
 				maple_string_append_char(json, ',');
+			} else {
+				notfirst = 1;
 			}
 			maple_string_append_char(json, '"');
 			maple_string_append_charstar(json, name, name_len);
@@ -287,9 +291,13 @@ maple_raw_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int out
 
 static int
 maple_json_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int outbuf_len) {
-	wznode * node = maple_get_node(wz, path);
 	maple_string * json;
-	unsigned int len;
+	int ret = 0;
+	wznode * node = maple_get_node(wz, path);
+	if (!node) {
+		outbuf[0] = 0;
+		return 0;
+	}
 	switch (wz_get_type(node)) {
 	case WZ_ARY: json = maple_json_array_node(node); break;
 	case WZ_IMG: json = maple_json_image_node(node); break;
@@ -304,14 +312,15 @@ maple_json_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int ou
 	case WZ_F64: json = maple_json_number_node(node); break;
 	case WZ_NIL: json = maple_json_nil_node(node); break;
 	}
-	// len = sprintf_s(outbuf, outbuf_len, "%s", json->buf);
-	len = sprintf(outbuf, "%s", json->buf);
-	maple_string_dispose(json);
-	if (json->len > len) {
-		return 0;
-	}
 	wz_close_node(node);
-	return 1;
+	// len = sprintf_s(outbuf, outbuf_len, "%s", json->buf);
+	if (json->len <= outbuf_len) {
+		memcpy(outbuf, json->buf, json->len);
+		outbuf[json->len] = 0;
+		ret = 1;
+	}
+	maple_string_dispose(json);
+	return ret;
 }
 
 #endif

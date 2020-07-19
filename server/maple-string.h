@@ -43,7 +43,7 @@ maple_string_double_cap(maple_string * s) {
     if (s->cap * 2 > MAPLE_STRING_MAX_N) {
         return 0;
     }
-    buf = (char *)malloc(s->cap);
+    buf = (char *)malloc(s->cap * 2);
     if (!buf) {
         return 0;
     }
