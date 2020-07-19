@@ -196,6 +196,7 @@ maple_json_image_node (wznode * node) {
 	wz_uint8_t scale;
 	wz_get_img(&w, &h, &depth, &scale, node);
 	maple_string * json = maple_string_alloc();
+	maple_string * nested;
 	maple_string_append_charstar(json, "{\"type\":\"image\",\"data\":{", 24);
 	maple_string_append_charstar(json, "\"width\":", 8);
 	maple_string_append_int(json, w);
@@ -218,7 +219,14 @@ maple_json_image_node (wznode * node) {
 		case WZ_COLOR_DXT5: maple_string_append_charstar(json, "\"dxt5\"", 6); break;
 		default:            maple_string_append_charstar(json, "\"unk\"", 5);  break;
 	}
-	maple_string_append_charstar(json, "}}", 2);
+	maple_string_append_charstar(json, "},\"nested\":", 11);
+	nested = maple_json_array_node(node);
+	if (nested) {
+		maple_string_append_string(json, nested);
+	} else {
+		maple_string_append_charstar(json, "null", 4);
+	}
+	maple_string_append_charstar(json, "}", 2);
 	return json;
 }
 
@@ -268,11 +276,12 @@ maple_raw_audio_node (wznode * node, unsigned int * outsize) {
 }
 
 static int
-maple_raw_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int outbuf_len) {
+maple_raw_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int outbuf_len, int *need) {
 	wznode * node = maple_get_node(wz, path);
 	int ret = 0;
 	unsigned int size = 0;
 	wz_uint8_t * data;
+	*need = outbuf_len;
 	switch (wz_get_type(node)) {
 	case WZ_IMG: data = maple_raw_image_node(node, &size); break;
 	case WZ_AO:  data = maple_raw_audio_node(node, &size); break;
@@ -280,6 +289,7 @@ maple_raw_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int out
 	}
 	if (size > outbuf_len) {
 		ret = -1;
+		*need = size;
 	}
 	if (ret >= 0) {
 		memcpy(outbuf, data, size);

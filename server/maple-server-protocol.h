@@ -42,6 +42,7 @@ struct vhd_data {
 
 enum maple_args_type {
 	MAPLE_ARGTYPE_WZ_READ,
+	MAPLE_ARGTYPE_WZ_BINARY_READ,
 	MAPLE_ARGTYPE_ECHO
 };
 
@@ -181,6 +182,124 @@ maple_process_wz_read_reply(
 }
 
 static int
+maple_process_wz_bin_read_reply(
+	struct maple_args * args,
+	struct lws * wsi,
+	struct maple_session * session,
+	struct vhd_data * vhd,
+	struct maple_message * out
+) {
+	if (!maple_global_server_config.wz_base_dir) {
+		return 0;
+	}
+	struct maple_data_wz_read * data = (struct maple_data_wz_read *)(args->data);
+	// nodepath = <filename>/<nodepath>
+	// e.g. base.wz/
+	const char * cur = data->nodepath;
+	unsigned int len = data->len;
+	wz_ctx_t * wz = NULL;
+	int ret = 0, index = 0, need = 0;
+	char name[256];
+	char buf[4096];
+	char * bufcur = buf;
+	if (*cur == '/') {
+		cur ++;
+		len --;
+	}
+	while (index < sizeof(name) && index < len) {
+		char ch = cur[index];
+		if (ch == '/') {
+			name[index] = 0;
+			break;
+		}
+		name[index] = ch;
+		index ++;
+	}
+	if (index + strlen(maple_global_server_config.wz_base_dir) >= sizeof(buf)) {
+		// filename too long
+		return 0;
+	}
+	sprintf(buf, "%s/%s", maple_global_server_config.wz_base_dir, name);
+	cur += index;
+	len -= index;
+	if (len > 0) {
+		cur ++;
+		len --;
+	}
+	if (len > sizeof(name)) {
+		// nodepath too long
+		return 0;
+	}
+	if (len) {
+		memcpy(name, cur, len);
+	}
+	name[len] = 0;
+	wz = maple_open_file(bufcur);
+	ret = maple_raw_node(wz, name, buf, sizeof(buf), &need);
+	if (ret == -1 && need == 0) {
+		// not WZ_IMG nor WZ_AO
+		return 0;
+	} else if (ret == -1) {
+		// TODO: if need > MAX, error
+		bufcur = (char *)malloc(need);
+		if (!bufcur) {
+			return 0;
+		}
+		ret = maple_raw_node(wz, name, bufcur, need, &need);
+		if (ret == -1) {
+			free(bufcur);
+			return 0;
+		}
+	}
+	maple_close_file(wz);
+
+	if (!ret) {
+		return 0;
+	}
+
+	len = (need == sizeof(buf)?ret:need);
+	if (out->final) {
+		session->msglen = 0;
+	} else {
+		session->msglen += len + 5;
+	}
+	out->len = len + 5;
+	/* notice we over-allocate by LWS_PRE */
+	out->payload = malloc(LWS_PRE + len + 5);
+	out->binary = 1;
+	if (!out->payload) {
+		lwsl_user("OOM: dropping\n");
+		return 0;
+	}
+	{
+		// write binary size as first 4 bytes (max 4GB) in little endian
+		char * lencur = (char *)out->payload + LWS_PRE;
+		unsigned int pack = len;
+		unsigned char byte;
+		*lencur++ = 'B';
+		byte = pack & 0xff;
+		*lencur++ = byte;
+		pack >>= 8;
+		byte = pack & 0xff;
+		*lencur++ = byte;
+		pack >>= 8;
+		byte = pack & 0xff;
+		*lencur++ = byte;
+		pack >>= 8;
+		byte = pack & 0xff;
+		*lencur++ = byte;
+		// copy raw data
+		memcpy((char *)out->payload + LWS_PRE + 5, bufcur, len);
+	}
+	if (!lws_ring_insert(session->ring, out, 1)) {
+		__discard_message(out);
+		lwsl_user("dropping!\n");
+		return 0;
+	}
+	return 1;
+}
+
+static int
 maple_process_reply(
 	struct maple_args * args,
 	struct lws * wsi,
@@ -192,6 +311,11 @@ maple_process_reply(
 	switch (args->type) {
 	case MAPLE_ARGTYPE_WZ_READ: {
 		ret = maple_process_wz_read_reply(args, wsi, session, vhd, out);
+		break;
+	}
+
+	case MAPLE_ARGTYPE_WZ_BINARY_READ: {
+		ret = maple_process_wz_bin_read_reply(args, wsi, session, vhd, out);
 		break;
 	}
 
@@ -234,6 +358,16 @@ maple_process_message(
 		data.nodepath = in + 1 /* skip ahead 'R' */;
 		data.len = len - 1;
 		args.type = MAPLE_ARGTYPE_WZ_READ;
+		args.data = (void *)&data;
+		ret = maple_process_reply(&args, wsi, session, vhd, out);
+		break;
+	}
+
+	case 'B': {
+		struct maple_data_wz_read data;
+		data.nodepath = in + 1;
+		data.len = len - 1;
+		args.type = MAPLE_ARGTYPE_WZ_BINARY_READ;
 		args.data = (void *)&data;
 		ret = maple_process_reply(&args, wsi, session, vhd, out);
 		break;
