@@ -2,6 +2,7 @@
 #define MAPLE_WZ_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "wz.h"
 #include "maple-string.h"
@@ -11,27 +12,6 @@ typedef struct {
 	wzfile * file;
 	wznode * root;
 } wz_ctx_t;
-
-static wz_ctx_t *
-maple_open_file(const char * filepath) {
-	wz_ctx_t * wz = (wz_ctx_t *)malloc(sizeof(wz_ctx_t));
-	wz->ctx = wz_init_ctx();
-	if (!wz->ctx) {
-		free(wz);
-		return NULL;
-	}
-	wz->file = wz_open_file(filepath, wz->ctx);
-	if (!wz->file) {
-		maple_close_file();
-		return NULL;
-	}
-	wz->root = wz_open_root(wz->file);
-	if (!wz->root) {
-		maple_close_file();
-		return NULL;
-	}
-	return wz;
-}
 
 static void
 maple_close_file(wz_ctx_t * wz) {
@@ -52,12 +32,33 @@ maple_close_file(wz_ctx_t * wz) {
 	}
 }
 
+static wz_ctx_t *
+maple_open_file(const char * filepath) {
+	wz_ctx_t * wz = (wz_ctx_t *)malloc(sizeof(wz_ctx_t));
+	wz->ctx = wz_init_ctx();
+	if (!wz->ctx) {
+		free(wz);
+		return NULL;
+	}
+	wz->file = wz_open_file(filepath, wz->ctx);
+	if (!wz->file) {
+		maple_close_file(wz);
+		return NULL;
+	}
+	wz->root = wz_open_root(wz->file);
+	if (!wz->root) {
+		maple_close_file(wz);
+		return NULL;
+	}
+	return wz;
+}
+
 static wznode *
 maple_get_node(wz_ctx_t * wz, const char * path) {
 	if (!wz->root) {
 		return NULL;
 	}
-	return wz_open_node(wz->root, nodepath);
+	return wz_open_node(wz->root, path);
 }
 
 static maple_string *
@@ -90,7 +91,7 @@ maple_json_array_node(wznode * node) {
 }
 
 static maple_string *
-maple_json_array_node(wznode * node) {
+maple_json_string_node(wznode * node) {
 	const char * text = wz_get_str(node);
 	unsigned int text_len = strlen(text);
 	maple_string * json = maple_string_alloc();
@@ -178,7 +179,7 @@ maple_json_vec_node(wznode * node) {
 		}
 		break;
 	}
-	default:
+	default: break;
 	}
 	maple_string_append_charstar(json, "]}", 2);
 	return json;
@@ -211,19 +212,20 @@ maple_json_image_node (wznode * node) {
 		case WZ_COLOR_565:  maple_string_append_charstar(json, "\"565\"", 5);  break;
 		case WZ_COLOR_DXT3: maple_string_append_charstar(json, "\"dxt3\"", 6); break;
 		case WZ_COLOR_DXT5: maple_string_append_charstar(json, "\"dxt5\"", 6); break;
-		default:            maple_string_append_charstar(json, "\"unk\"", 5;  break;
+		default:            maple_string_append_charstar(json, "\"unk\"", 5);  break;
 	}
 	maple_string_append_charstar(json, "}}", 2);
 	return json;
 }
 
 static wz_uint8_t *
-maple_raw_image_node (wznode * node) {
+maple_raw_image_node (wznode * node, unsigned int * outsize) {
 	wz_uint32_t w, h;
 	wz_uint16_t depth;
 	wz_uint8_t scale;
 	wz_uint8_t * data = wz_get_img(&w, &h, &depth, &scale, node);
 	// ?size: w * h * 4
+	*outsize = w * h * 4;
 	return data;
 }
 
@@ -245,19 +247,71 @@ maple_json_audio_node (wznode * node) {
 	switch (format) {
 		case WZ_AUDIO_PCM: maple_string_append_charstar(json, "\"pcm\"", 5); break;
 		case WZ_AUDIO_MP3: maple_string_append_charstar(json, "\"mp3\"", 5); break;
-		default:           maple_string_append_charstar(json, "\"unk\"", 5;  break;
+		default:           maple_string_append_charstar(json, "\"unk\"", 5);  break;
 	}
 	maple_string_append_charstar(json, "}}", 2);
 	return json;
 }
 
 static wz_uint8_t *
-maple_raw_audio_node (wznode * node) {
+maple_raw_audio_node (wznode * node, unsigned int * outsize) {
     wz_uint32_t size;
     wz_uint32_t ms;
     wz_uint16_t format;
     wz_uint8_t * data = wz_get_ao(&size, &ms, &format, node);
+	*outsize = size;
 	return data;
+}
+
+static int
+maple_raw_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int outbuf_len) {
+	wznode * node = maple_get_node(wz, path);
+	int ret = 0;
+	unsigned int size = 0;
+	wz_uint8_t * data;
+	switch (wz_get_type(node)) {
+	case WZ_IMG: data = maple_raw_image_node(node, &size); break;
+	case WZ_AO:  data = maple_raw_audio_node(node, &size); break;
+	default:     ret = -1;
+	}
+	if (size > outbuf_len) {
+		ret = -1;
+	}
+	if (ret >= 0) {
+		memcpy(outbuf, data, size);
+		ret = (int)size;
+	}
+	wz_close_node(node);
+	return ret;
+}
+
+static int
+maple_json_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int outbuf_len) {
+	wznode * node = maple_get_node(wz, path);
+	maple_string * json;
+	unsigned int len;
+	switch (wz_get_type(node)) {
+	case WZ_ARY: json = maple_json_array_node(node); break;
+	case WZ_IMG: json = maple_json_image_node(node); break;
+	case WZ_AO:  json = maple_json_audio_node(node); break;
+	case WZ_STR: json = maple_json_string_node(node); break;
+	case WZ_VEX:
+	case WZ_VEC: json = maple_json_vec_node(node); break;
+	case WZ_I16:
+	case WZ_I32:
+	case WZ_I64:
+	case WZ_F32:
+	case WZ_F64: json = maple_json_number_node(node); break;
+	case WZ_NIL: json = maple_json_nil_node(node); break;
+	}
+	// len = sprintf_s(outbuf, outbuf_len, "%s", json->buf);
+	len = sprintf(outbuf, "%s", json->buf);
+	maple_string_dispose(json);
+	if (json->len > len) {
+		return 0;
+	}
+	wz_close_node(node);
+	return 1;
 }
 
 #endif
