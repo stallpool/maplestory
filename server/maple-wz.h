@@ -200,17 +200,15 @@ maple_json_image_node (wznode * node) {
 	maple_string_append_charstar(json, "{\"type\":\"image\",\"data\":{", 24);
 	maple_string_append_charstar(json, "\"width\":", 8);
 	maple_string_append_int(json, w);
-	maple_string_append_char(json, ',');
-	maple_string_append_charstar(json, "\"height\":", 9);
+	maple_string_append_charstar(json, ",\"height\":", 10);
 	maple_string_append_int(json, h);
-	maple_string_append_char(json, ',');
-	maple_string_append_charstar(json, "\"scale\":", 8);
+	maple_string_append_charstar(json, ",\"scale\":", 9);
 	if (scale < 0 || scale > 4) {
 		maple_string_append_int(json, 0);
 	} else {
 		maple_string_append_int(json, 1 << scale);
 	}
-	maple_string_append_charstar(json, "\"depth\":", 8);
+	maple_string_append_charstar(json, ",\"depth\":", 9);
 	switch (depth) {
 		case WZ_COLOR_8888: maple_string_append_charstar(json, "\"8888\"", 6); break;
 		case WZ_COLOR_4444: maple_string_append_charstar(json, "\"4444\"", 6); break;
@@ -300,7 +298,7 @@ maple_raw_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int out
 }
 
 static int
-maple_json_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int outbuf_len) {
+maple_json_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int outbuf_len, int *need) {
 	maple_string * json;
 	int ret = 0;
 	wznode * node = maple_get_node(wz, path);
@@ -325,9 +323,13 @@ maple_json_node(wz_ctx_t * wz, const char * path, char * outbuf, unsigned int ou
 	wz_close_node(node);
 	// len = sprintf_s(outbuf, outbuf_len, "%s", json->buf);
 	if (json->len <= outbuf_len) {
+		*need = outbuf_len;
 		memcpy(outbuf, json->buf, json->len);
 		outbuf[json->len] = 0;
 		ret = 1;
+	} else {
+		*need = json->len;
+		ret = 0;
 	}
 	maple_string_dispose(json);
 	return ret;

@@ -116,9 +116,10 @@ maple_process_wz_read_reply(
 	const char * cur = data->nodepath;
 	unsigned int len = data->len;
 	wz_ctx_t * wz = NULL;
-	int ret = 0, index = 0;
 	char name[256];
 	char buf[4096];
+	char * bufcur = buf;
+	int ret = 0, index = 0, need = sizeof(buf);
 	if (*cur == '/') {
 		cur ++;
 		len --;
@@ -152,14 +153,26 @@ maple_process_wz_read_reply(
 	}
 	name[len] = 0;
 	wz = maple_open_file(buf);
-	ret = maple_json_node(wz, name, buf, sizeof(buf));
+	ret = maple_json_node(wz, name, buf, sizeof(buf), &need);
+	if (ret == 0 && need > 0) {
+		// TODO: if need > MAX, error
+		bufcur = (char *)malloc(need);
+		if (!bufcur) {
+			return 0;
+		}
+		ret = maple_json_node(wz, name, bufcur, need, &need);
+		if (ret == 0) {
+			free(bufcur);
+			return 0;
+		}
+	}
 	maple_close_file(wz);
 
 	if (!ret) {
 		return 0;
 	}
 
-	len = strlen(buf);
+	len = strlen(bufcur);
 	if (out->final) {
 		session->msglen = 0;
 	} else {
@@ -172,7 +185,10 @@ maple_process_wz_read_reply(
 		lwsl_user("OOM: dropping\n");
 		return 0;
 	}
-	memcpy((char *)out->payload + LWS_PRE, buf, len);
+	memcpy((char *)out->payload + LWS_PRE, bufcur, len);
+	if (need > sizeof(buf)) {
+		free(bufcur);
+	}
 	if (!lws_ring_insert(session->ring, out, 1)) {
 		__discard_message(out);
 		lwsl_user("dropping!\n");
@@ -290,6 +306,9 @@ maple_process_wz_bin_read_reply(
 		*lencur++ = byte;
 		// copy raw data
 		memcpy((char *)out->payload + LWS_PRE + 5, bufcur, len);
+	}
+	if (need > sizeof(buf)) {
+		free(bufcur);
 	}
 	if (!lws_ring_insert(session->ring, out, 1)) {
 		__discard_message(out);

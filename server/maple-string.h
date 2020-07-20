@@ -11,7 +11,7 @@ typedef struct {
 } maple_string;
 
 #define MAPLE_STRING_INIT_N 512
-#define MAPLE_STRING_MAX_N  4 * 1024
+#define MAPLE_STRING_MAX_N  1 * 1024 * 1024
 
 static maple_string *
 maple_string_alloc() {
