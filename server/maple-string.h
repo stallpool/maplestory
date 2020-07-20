@@ -79,8 +79,7 @@ maple_string_append_char(maple_string * s, char d) {
         }
     }
     char * cur = (s->buf) + s->len;
-    *cur = d;
-    cur ++;
+    *cur++ = d;
     *cur = 0;
     s->len ++;
     return 1;

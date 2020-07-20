@@ -9,7 +9,7 @@ function MapleSound (href) {
     MapleResourceManager.Get(href, 'audio').then(function (obj) {
         console.log(obj);
         // XXX: use old style; but it will going away in modern browser
-        that.blobUrl = URL.createObjectURL(new Blob([obj.u8], { type: 'audio/mp3' }))
+        that.blobUrl = URL.createObjectURL(new Blob([obj.u8]));
     }, function () {
         that.blobUrl = null;
     });

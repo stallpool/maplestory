@@ -1,0 +1,147 @@
+<html>
+   <head>
+      <title>WZBrowser</title>
+      <link rel="stylesheet" href="css/browser.css" type="text/css" />
+   </head>
+   <body>
+   <div class="frame">
+      <div class="navigator"><div id="mapleTreeView"></div></div>
+      <div class="contents"><div id="mapleContentView"></div></div>
+   </div>
+   <script src="./core/resource.js"></script>
+   <script src="./core/sound.js"></script>
+   <script src="./core/character.js"></script>
+   <script>
+   var _MapleWZList = [
+      'Base.wz', 'Character.wz', 'Effect.wz', 'Item.wz', 'List.wz', 'Map.wz',
+      'Mob.wz', 'Morph.wz', 'Npc.wz', 'Quest.wz', 'Reactor.wz', 'Skill.wz',
+      'Sound.wz', 'String.wz', 'TamingMob.wz', 'UI.wz'
+   ];
+
+   var _MapleCache = {};
+
+   function clearElement(elem) {
+      while (elem.chidlren) { elem.removeChild(elem.children[0]); }
+      elem.innerHTML = '';
+   }
+
+   function newMapleTreeNode(name, path) {
+      var ui = {
+         self: document.createElement('div'),
+         name: document.createElement('div'),
+         children: document.createElement('div')
+      };
+      ui.self.className = 'maple-tree-node';
+      ui.name.className = 'maple-tree-node-name';
+      ui.name.setAttribute('data-name', name);
+      ui.name.setAttribute('data-expand', '0');
+      ui.name.setAttribute('data-details', '0');
+      ui.name.setAttribute('data-path', path);
+      ui.name.appendChild(document.createTextNode(name));
+      ui.children.className = 'maple-tree-node-children';
+      ui.self.appendChild(ui.name);
+      ui.self.appendChild(ui.children);
+      return ui;
+   }
+
+   function showMapleTreeNode(evt) {
+      clearElement(ui.mapleContentView);
+      var path = evt.target.getAttribute('data-path');
+      var obj = _MapleCache[path];
+      if (!obj) return;
+      var pre = document.createElement('pre');
+      var cloned = Object.assign({}, obj);
+      delete cloned.u8;
+      delete cloned.nested;
+      pre.appendChild(document.createTextNode(JSON.stringify(cloned, null, 3)));
+      ui.mapleContentView.appendChild(pre);
+      var div = document.createElement('div');
+      switch (obj.type) {
+         case 'image':
+            var sprite = new MapleSprite(obj.u8, obj.data.width, obj.data.height);
+            var img = document.createElement('img');
+            img.src = sprite.ImageURLBlob();
+            div.appendChild(img);
+            ui.mapleContentView.appendChild(div);
+            break;
+         case 'audio':
+            var audio = document.createElement('audio');
+            audio.src = URL.createObjectURL(new Blob([obj.u8]));
+            audio.setAttribute('controls', '1');
+            div.appendChild(audio);
+            ui.mapleContentView.appendChild(div);
+            break;
+      }
+   }
+
+   function clickMapleTreeNode(evt) {
+      var hasDetails = evt.target.getAttribute('data-details') === '1';
+      if (hasDetails) {
+         var hasExpanded = evt.target.getAttribute('data-expand') === '1';
+         if (hasExpanded) {
+            evt.target.setAttribute('data-expand', '0');
+            evt.target.nextSibling.style.display = 'none';
+         } else {
+            evt.target.setAttribute('data-expand', '1');
+            evt.target.nextSibling.style.display = 'block';
+         }
+         showMapleTreeNode(evt);
+      } else {
+         evt.target.setAttribute('data-details', '1');
+         evt.target.setAttribute('data-expand', '1');
+         var childrenPanel = evt.target.nextSibling;
+         childrenPanel.innerHTML = 'Loading ...';
+         var path = evt.target.getAttribute('data-path');
+         MapleResourceManager.Get(path).then(function (obj) {
+            clearElement(childrenPanel);
+            _MapleCache[path] = obj;
+            switch (obj.type) {
+               case 'image':
+                  obj = obj.nested;
+                  showMapleTreeNode(evt);
+                  // fall through
+               case 'array':
+                  for (var i = 0; i < obj.data.length; i ++) {
+                     var name = obj.data[i];
+                     var node = newMapleTreeNode(name, path + '/' + name);
+                     childrenPanel.appendChild(node.self);
+                  }
+                  break;
+               case 'audio':
+                  showMapleTreeNode(evt);
+                  break;
+               case 'vector':
+               case 'number':
+               default:
+                  showMapleTreeNode(evt);
+                  break;
+            }
+         }, function () {
+            childrenPanel.innerHTML = '! Load Failed';
+         });
+      }
+   }
+
+   function newMapleTree(parent) {
+      this.parent = parent;
+      for (var i = 0; i < _MapleWZList.length; i ++) {
+         var wzname = _MapleWZList[i];
+         var node = newMapleTreeNode(wzname, '/' + wzname);
+         this.parent.appendChild(node.self);
+      }
+   }
+
+   var ui = {
+      mapleTreeView: document.querySelector('#mapleTreeView'),
+      mapleContentView: document.querySelector('#mapleContentView')
+   };
+   newMapleTree(ui.mapleTreeView);
+   ui.mapleTreeView.addEventListener('click', function (evt) {
+      if (!evt.target.classList) return;
+      if (evt.target.classList.contains('maple-tree-node-name')) {
+         clickMapleTreeNode(evt);
+      }
+   });
+   </script>
+   </body>
+</html>

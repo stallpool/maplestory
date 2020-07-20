@@ -114,7 +114,7 @@ maple_json_string_node(wznode * node) {
 	const char * text = wz_get_str(node);
 	unsigned int text_len = strlen(text);
 	maple_string * json = maple_string_alloc();
-	maple_string_append_charstar(json, "{\"type\":\"string\",\"data\":\"", 26);
+	maple_string_append_charstar(json, "{\"type\":\"string\",\"data\":\"", 25);
 	// TODO: normalize json string
 	maple_string_append_charstar(json, text, text_len);
 	maple_string_append_charstar(json, "\"}", 2);

@@ -1,0 +1,32 @@
+body {
+    overflow: hidden;
+}
+
+.frame {
+    height: 100%;
+    width: 100%;
+    display: flex;
+}
+
+.navigator {
+    width: 200px;
+    flex: 0 0 auto;
+    overflow: auto;
+}
+
+.contents {
+    flex: 1 1 auto;
+    overflow: auto;
+}
+
+#mapleTreeView {
+    white-space: nowrap;
+}
+
+.maple-tree-node-name {
+    cursor: pointer;
+}
+
+.maple-tree-node-children {
+    margin-left: 5px;
+}
