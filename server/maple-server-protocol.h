@@ -215,8 +215,8 @@ maple_process_wz_bin_read_reply(
 	unsigned int len = data->len;
 	wz_ctx_t * wz = NULL;
 	int ret = 0, index = 0, need = 0;
-	char name[256];
-	char buf[4096];
+	char filepath[256], name[256];
+	char buf[16 * 1096];
 	char * bufcur = buf;
 	if (*cur == '/') {
 		cur ++;
@@ -231,11 +231,11 @@ maple_process_wz_bin_read_reply(
 		name[index] = ch;
 		index ++;
 	}
-	if (index + strlen(maple_global_server_config.wz_base_dir) >= sizeof(buf)) {
+	if (index + strlen(maple_global_server_config.wz_base_dir) >= sizeof(filepath)) {
 		// filename too long
 		return 0;
 	}
-	sprintf(buf, "%s/%s", maple_global_server_config.wz_base_dir, name);
+	sprintf(filepath, "%s/%s", maple_global_server_config.wz_base_dir, name);
 	cur += index;
 	len -= index;
 	if (len > 0) {
@@ -250,7 +250,11 @@ maple_process_wz_bin_read_reply(
 		memcpy(name, cur, len);
 	}
 	name[len] = 0;
-	wz = maple_open_file(bufcur);
+	wz = maple_open_file(filepath);
+	if (!wz) {
+		maple_close_file(wz);
+		return 0;
+	}
 	ret = maple_raw_node(wz, name, buf, sizeof(buf), &need);
 	if (ret == -1 && need == 0) {
 		// not WZ_IMG nor WZ_AO
@@ -259,6 +263,16 @@ maple_process_wz_bin_read_reply(
 		// TODO: if need > MAX, error
 		bufcur = (char *)malloc(need);
 		if (!bufcur) {
+			return 0;
+		}
+		// XXX: when read again, the node type change to an unknown value of 15
+		//      in wz.h, max = 14 WZ_STR
+		//      need to investigate into libwz source code
+		// currently, we close the file and open for reset everything
+		maple_close_file(wz);
+		wz = maple_open_file(filepath);
+		if (!wz) {
+			maple_close_file(wz);
 			return 0;
 		}
 		ret = maple_raw_node(wz, name, bufcur, need, &need);

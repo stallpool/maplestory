@@ -32,9 +32,24 @@ maple_close_file(wz_ctx_t * wz) {
 	}
 }
 
+static int
+maple_file_exists(const char * filepath) {
+	// any platform support this
+	FILE *file;
+	if ((file = fopen(filepath, "r"))) {
+		fclose(file);
+		return 1;
+	}
+	return 0;
+}
+
 static wz_ctx_t *
 maple_open_file(const char * filepath) {
-	wz_ctx_t * wz = (wz_ctx_t *)malloc(sizeof(wz_ctx_t));
+	wz_ctx_t * wz;
+	if (!maple_file_exists(filepath)) {
+		return NULL;
+	}
+	wz = (wz_ctx_t *)malloc(sizeof(wz_ctx_t));
 	wz->ctx = wz_init_ctx();
 	if (!wz->ctx) {
 		free(wz);
