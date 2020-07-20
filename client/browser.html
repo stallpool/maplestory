@@ -45,15 +45,18 @@
    }
 
    function showMapleTreeNode(evt) {
-      clearElement(ui.mapleContentView);
       var path = evt.target.getAttribute('data-path');
       var obj = _MapleCache[path];
       if (!obj) return;
+      if (obj.type === 'array') return;
+      clearElement(ui.mapleContentView);
       var pre = document.createElement('pre');
       var cloned = Object.assign({}, obj);
       delete cloned.u8;
       delete cloned.nested;
-      pre.appendChild(document.createTextNode(JSON.stringify(cloned, null, 3)));
+      pre.appendChild(document.createTextNode(
+         'Path: ' + path + '\n\n' + JSON.stringify(cloned, null, 3))
+      );
       ui.mapleContentView.appendChild(pre);
       var div = document.createElement('div');
       switch (obj.type) {

@@ -25,3 +25,8 @@ git submodule update --init
 bash build_deps.sh
 bash build.sh
 ```
+
+### Known Issues
+
+- Segmentation Fault:
+   - Partial List: v062 `/String.wz/Consume.img` `/String.wz/Item.img/Etc` `/Quest.wz/Say.img` `/List.wz` `/Item.wz/Consume/0202.img`
