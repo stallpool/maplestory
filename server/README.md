@@ -5,6 +5,7 @@
 ```
 # cp *.wz local/resources
 ./local/maple-server -b local/resources
+# open ../client/browser.html to explore items in wz files
 ```
 
 ```
