@@ -2,20 +2,21 @@
    <body style="overflow: hidden;">
    <button onclick="soundPlay()">Play</button>
    <button onclick="createCharacter()">Character</button>
+   <button onclick="createCharacter2()">Character2</button>
    <input id="debugInput" />
    <script src="./core/resource.js"></script>
    <script src="./core/sound.js"></script>
    <script src="./core/character.js"></script>
    <script>
       // the test.html uses wz from v062
-      var env = {};
+      var env = { action: 'stand1' };
       var test = new MapleSound('/Sound.wz/Bgm02.img/MissingYou');
       function soundPlay () {
          test.Play();
       }
 
       function createCharacter() {
-         var char = new MapleCharacter({
+         var char = new MapleCharacterSimple({
             head: '/Character.wz/00012004.img/front/head',
             body: '/Character.wz/00002004.img/stand1/0/body',
             arm: '/Character.wz/00002004.img/stand1/0/arm',
@@ -34,13 +35,48 @@
          });
       }
 
+      function createCharacter2() {
+         var char = new MapleCharacter('2004');
+         char.Assemble().then(function () {
+            var canvas = document.createElement('canvas');
+            var pen = canvas.getContext('2d');
+            var img = char.Image();
+            var index = 0;
+            var lastAction, val;
+            next();
+            document.body.appendChild(canvas);
+
+            function next() {
+               if (env.action !== lastAction) {
+                  index = 0;
+                  var a = char.data.body[env.action];
+                  val = Object.keys(a);
+                  var r = val.slice().reverse();
+                  r.shift(); r.pop();
+                  val = val.concat(r);
+               }
+               char.Paint(env.action, val[index]);
+               lastAction = env.action;
+               canvas.style.position = 'absolute';
+               canvas.width = char.w;
+               canvas.height = char.h;
+               canvas.style.width = char.w + 'px';
+               canvas.style.height = char.h + 'px';
+               pen.clearRect(0, 0, char.w, char.h);
+               pen.putImageData(char.Image(), 0, 0);
+               index = (index + 1) % val.length;
+               setTimeout(function () { next(); }, 300);
+            }
+         });
+      }
+
       document.body.addEventListener('click', function (evt) {
          if (evt.which !== 1) return;
          if (env.move) {
             env.move = null;
             return;
          }
-         if (evt.target.tagName.toLowerCase() !== 'img') return;
+         if (['img', 'canvas'].indexOf(evt.target.tagName.toLowerCase()) < 0) return;
          env.move = evt.target;
       });
       document.body.addEventListener('mousemove', function (evt) {
@@ -49,7 +85,12 @@
          env.move.style.left = (evt.clientX - env.move.offsetWidth / 2) + 'px';
       });
       document.body.addEventListener('keydown', function (evt) {
-         switch(evt.code) {
+         switch(evt.target.tagName.toLowerCase()) {
+            case 'img': img_move(); break;
+            case 'canvas': canvas_move(); break;
+         }
+         function img_move() {
+            switch(evt.code) {
             case 'ArrowLeft':
                if (!env.move) return;
                if (env.move.offsetLeft <= 0) return;
@@ -70,6 +111,34 @@
                if (env.move.offsetTop + env.move.offsetHeight >= window.innerHeight) return;
                env.move.style.top = (env.move.offsetTop + 10) + 'px';
                return;
+            }
+         }
+         function canvas_move() {
+            switch(evt.code) {
+            case 'ArrowLeft':
+               if (!env.move) return;
+               if (env.move.offsetLeft <= 0) return;
+               env.faceDirection = 0;
+               env.moveLeft = 1;
+               env.move.style.left = (env.move.offsetLeft - 10) + 'px';
+               return;
+            case 'ArrowRight':
+               if (!env.move) return;
+               if (env.move.offsetLeft + env.move.offsetWidth >= window.innerWidth) return;
+               env.faceDirection = 0;
+               env.move.style.left = (env.move.offsetLeft + 10) + 'px';
+               return;
+            case 'ArrowUp':
+               if (!env.move) return;
+               if (env.move.offsetTop <= 0) return;
+               env.move.style.top = (env.move.offsetTop - 10) + 'px';
+               return;
+            case 'ArrowDown':
+               if (!env.move) return;
+               if (env.move.offsetTop + env.move.offsetHeight >= window.innerHeight) return;
+               env.move.style.top = (env.move.offsetTop + 10) + 'px';
+               return;
+            }
          }
       });
       document.querySelector('#debugInput').addEventListener('keypress', charOpen);

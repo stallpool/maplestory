@@ -2,7 +2,9 @@ var _MapleCharacterCanvas = document.createElement('canvas');
 var _MapleCharacterPen = _MapleCharacterCanvas.getContext('2d');
 
 function MapleSprite(u8, w, h) {
-   this.SetU8(u8, w, h);
+   if (u8) {
+      this.SetU8(u8, w, h);
+   }
 }
 
 MapleSprite.prototype = {
@@ -39,7 +41,123 @@ MapleSprite.prototype = {
    }
 };
 
-function MapleCharacter(parts) {
+function MapleCharacter(base) {
+   // base = e.g. 2002.img
+   // - body = 00002002.img, head = 00012002.img
+   this.base = base;
+   this.assembled = false;
+   this.data = { body: {}, head: {} };
+   this.sprite = new MapleSprite();
+   this.constants = {
+      body: ['walk1', 'stand1', 'prone', 'jump', 'sit', 'ladder', 'rope', 'proneStab', 'alert'],
+      head: ['front', 'back'],
+      back_body: ['rope', 'ladder']
+   };
+}
+
+MapleCharacter.prototype = {
+   Assemble: function (action) {
+      if (this.assembled) return Promise.resolve();
+      var that = this;
+      return new Promise(function (resolve) {
+         that.constants.body.forEach(function (type) {
+            MapleResourceManager.GetTree('/Character.wz/0000' + that.base + '.img/' + type).then(function (data) {
+               that.data.body[type] = data.tree;
+               assemble();
+            });
+         });
+         that.constants.head.forEach(function (type) {
+            MapleResourceManager.GetTree('/Character.wz/0001' + that.base + '.img/' + type + '/head').then(function (data) {
+               that.data.head[type] = data.tree;
+               assemble();
+            });
+         });
+   
+         function assemble() {
+            for (var i = 0, n = that.constants.body.length; i < n; i++) {
+               if (!that.data.body[that.constants.body[i]]) return;
+            }
+            for (var i = 0, n = that.constants.head.length; i < n; i++) {
+               if (!that.data.head[that.constants.head[i]]) return;
+            }
+            console.log('done');
+            that.assembled = true;
+            resolve();
+         }
+      });
+   },
+   _positionMatch: function (p1p, p1, p2) {
+      var mp1 = {}, mp2 = {}, p2p = {};
+      Object.keys(p1.map).forEach(function (x) { mp1[x] = 1; });
+      Object.keys(p2.map).forEach(function (x) { if (mp1[x]) mp2[x] = 1; });
+      var match = Object.keys(mp2)[0];
+      if (!match) return null;
+      p2p.x = p1p.x + p1.origin[0] + p1.map[match][0] - p2.origin[0] - p2.map[match][0];
+      p2p.y = p1p.y + p1.origin[1] + p1.map[match][1] - p2.origin[1] - p2.map[match][1];
+      p2p.w = p2.$data.width;
+      p2p.h = p2.$data.height;
+      return p2p;
+   },
+   _rect: function (type, index) {
+      if (!this.assembled) return null;
+      var head = this.data.head.front;
+      if (this.constants.back_body.includes(type)) {
+         head = this.data.head.back;
+      }
+      var body = this.data.body[type][index];
+      var position = {};
+      position.head = { x: 0, y: 0, w: head.$data.width, h: head.$data.height };
+      position.body = this._positionMatch(position.head, head, body.body);
+      if (body.arm) position.arm = this._positionMatch(position.body, body.body, body.arm);
+      for (var part in position) {
+         if (position[part].x < 0) {
+            position.forEach(function (p) { p.x -= position[part].x; });
+         }
+         if (position[part].y < 0) {
+            position.forEach(function (p) { p.y -= position[part].y; });
+         }
+      }
+      var max_w = 0, max_h = 0;
+      Object.keys(position).forEach(function (part) {
+         var p = position[part];
+         if (p.x + p.w > max_w) max_w = p.x + p.w;
+         if (p.y + p.h > max_h) max_h = p.y + p.h;
+      });
+      var objs = [];
+      objs.push({ u8: body.body.$u8, rect: position.body });
+      if (body.arm) objs.push({ u8: body.arm.$u8, rect: position.arm });
+      objs.push({ u8: head.$u8, rect: position.head });
+      return { w: max_w, h: max_h, objs: objs};
+   },
+   Paint: function (type, index) {
+      if (!this.assembled) return null;
+      var that = this;
+      var vis = this._rect(type, index);
+      if (!this.paper) {
+         this.paper = document.createElement('canvas');
+         this.pen = this.paper.getContext('2d');
+      }
+      this.paper.width = vis.w;
+      this.paper.height = vis.h;
+      this.paper.style.width = vis.w + 'px';
+      this.paper.style.height = vis.h + 'px';
+      vis.objs.forEach(function (obj) {
+         var sprite = new MapleSprite(obj.u8, obj.rect.w, obj.rect.h);
+         that.pen.drawImage(sprite.paper, obj.rect.x, obj.rect.y);
+      });
+      this.image = this.pen.getImageData(0, 0, vis.w, vis.h);
+      this.w = vis.w;
+      this.h = vis.h;
+   },
+   Image: function () {
+      return this.image;
+   },
+   ImageURLBlob: function () {
+      return this.paper.toDataURL();
+   }
+};
+
+function MapleCharacterSimple(parts) {
    // XXX: should read from metadata instead of manual assign in _: {...}
    /*this.parts = {
       head: 'core/headsuite/front/head',
@@ -54,7 +172,7 @@ function MapleCharacter(parts) {
    this.parts = parts;
 }
 
-MapleCharacter.prototype = {
+MapleCharacterSimple.prototype = {
    _Rect: function () {
       if (!this.assembled) return;
       var w = 0, h = 0;

@@ -40,7 +40,7 @@ var _MapleResourceWebsocket = {
          if (connection.task.reject) connection.task.reject('closed');
       });
       connection.ws.addEventListener('close', function (e) {
-         if (connection.timer) clearTimeout(conneciton.timer);
+         if (connection.timer) clearTimeout(connection.timer);
          connection.dead = true;
          if (connection.task.reject) connection.task.reject('closed');
       });
@@ -178,9 +178,9 @@ MapleResource.prototype = {
                   queue = node.nested.data.map(function (x) {
                      return path + '/' + x;
                   });
-                  obj.data = node.data;
-                  obj.u8 = node.u8;
-                  obj.type = 'image';
+                  obj.$data = node.data;
+                  obj.$u8 = node.u8;
+                  obj.$type = 'image';
                   break;
                case 'array':
                   queue = node.data.map(function (x) {
@@ -189,19 +189,18 @@ MapleResource.prototype = {
                   break;
                case 'audio':
                   queue = [];
-                  obj.data = node.data;
-                  obj.u8 = node.u8;
-                  obj.type = 'audio';
+                  obj.$data = node.data;
+                  obj.$u8 = node.u8;
+                  obj.$type = 'audio';
                   break;
                default:
                   queue = [];
                   obj = node.data;
             }
-            obj.children = {};
             that.getTreeChildren(obj, errors, queue, function () {
                if (parent) {
                   var name = path.split('/').pop();
-                  parent.children[name] = obj;
+                  parent[name] = obj;
                }
                resolve(obj);
             });
@@ -219,7 +218,7 @@ MapleResource.prototype = {
       var path = queue.shift();
       that.getTreeNode(parent, errors, path).then(function (node) {
          var name = path.split('/').pop();
-         parent.children[name] = node;
+         parent[name] = node;
          that.getTreeChildren(parent, errors, queue, resolveFn);
       });
    }

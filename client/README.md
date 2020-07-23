@@ -2,6 +2,8 @@
 
 ### How to use
 
+![animation-demo](https://github.com/stallpool/maplestory/blob/master/etc/animation.gif?raw=true)
+
 ##### explore items in wz file
 
 Do you want to dump WZ resource via web UI?
