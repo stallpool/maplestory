@@ -4,8 +4,41 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(__APPLE__)
+   #define COMMON_DIGEST_FOR_OPENSSL
+   #include <CommonCrypto/CommonDigest.h>
+   #define SHA1 CC_SHA1
+#else
+   #include <openssl/sha.h>
+   // if build in windows, please compile openssl first
+#endif
+
 #include "wz.h"
 #include "maple-string.h"
+
+void
+sha256(const char *bin, int len, char out[65]) {
+    int i;
+    SHA256_CTX c;
+    unsigned char digest[32];
+
+    SHA256_Init(&c);
+    while (len > 0) {
+        if (len > 512) {
+            SHA256_Update(&c, bin, 512);
+        } else {
+            SHA256_Update(&c, bin, len);
+        }
+        len -= 512;
+        bin += 512;
+    }
+    SHA256_Final(digest, &c);
+
+    for (i = 0; i < 32; i++) {
+        snprintf(&(out[i * 2]), 16*2, "%02x", digest[i]);
+    }
+}
 
 typedef struct {
 	wzctx  * ctx;
@@ -209,11 +242,16 @@ maple_json_image_node (wznode * node) {
 	wz_uint32_t w, h;
 	wz_uint16_t depth;
 	wz_uint8_t scale;
-	wz_get_img(&w, &h, &depth, &scale, node);
+	wz_uint8_t * data = wz_get_img(&w, &h, &depth, &scale, node);
+	char sha256digest[65];
+	sha256((const char *)data, w * h * 4, sha256digest);
+	sha256digest[64] = 0;
 	maple_string * json = maple_string_alloc();
 	maple_string * nested;
 	maple_string_append_charstar(json, "{\"type\":\"image\",\"data\":{", 24);
-	maple_string_append_charstar(json, "\"width\":", 8);
+	maple_string_append_charstar(json, "\"sha\":\"", 7);
+	maple_string_append_charstar(json, sha256digest, 32);
+	maple_string_append_charstar(json, "\",\"width\":", 10);
 	maple_string_append_int(json, w);
 	maple_string_append_charstar(json, ",\"height\":", 10);
 	maple_string_append_int(json, h);
@@ -259,16 +297,19 @@ maple_json_audio_node (wznode * node) {
     wz_uint32_t size;
     wz_uint32_t ms;
     wz_uint16_t format;
-    wz_get_ao(&size, &ms, &format, node);
+    wz_uint8_t * data = wz_get_ao(&size, &ms, &format, node);
+	char sha256digest[65];
+	sha256((const char *)data, size, sha256digest);
+	sha256digest[64] = 0;
 	maple_string * json = maple_string_alloc();
 	maple_string_append_charstar(json, "{\"type\":\"audio\",\"data\":{", 24);
-	maple_string_append_charstar(json, "\"size\":", 7);
+	maple_string_append_charstar(json, "\"sha\":\"", 7);
+	maple_string_append_charstar(json, sha256digest, 32);
+	maple_string_append_charstar(json, "\",\"size\":", 9);
 	maple_string_append_int(json, size);
-	maple_string_append_char(json, ',');
-	maple_string_append_charstar(json, "\"ms\":", 5);
+	maple_string_append_charstar(json, ",\"ms\":", 6);
 	maple_string_append_int(json, ms);
-	maple_string_append_char(json, ',');
-	maple_string_append_charstar(json, "\"format\":", 9);
+	maple_string_append_charstar(json, ",\"format\":", 10);
 	switch (format) {
 		case WZ_AUDIO_PCM: maple_string_append_charstar(json, "\"pcm\"", 5); break;
 		case WZ_AUDIO_MP3: maple_string_append_charstar(json, "\"mp3\"", 5); break;
