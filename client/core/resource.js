@@ -86,6 +86,7 @@ _MapleResourceWebsocket.init();
 var _MapleResourceUtil = {
    fetchMetadata: function (R, U8cache, path) {
       path = 'R' + path;
+      if (R[path]) return Promise.resolve(R[path]);
       return new Promise(function (resolve, reject) {
          _MapleResourceWebsocket.run({
             path: path,
@@ -198,6 +199,23 @@ MapleResource.prototype = {
                   obj = node.data;
             }
             that.getTreeChildren(obj, errors, queue, function () {
+               if (obj._inlink) {
+                  // e.g. walk1/2/arm _inlink = walk1/0/arm
+                  var linkParts = obj._inlink.split('/');
+                  var pathParts = path.split('/');
+                  for (var i = linkParts.length - 1, j = pathParts.length - 1; i >= 0 && j >= 0; i--) {
+                     pathParts[j] = linkParts[i];
+                     j --;
+                  }
+                  that.getTreeNode(parent, errors, pathParts.join('/')).then(function (node) {
+                     if (parent) {
+                        var name = path.split('/').pop();
+                        parent[name] = obj;
+                     }
+                     resolve(node);
+                  });
+                  return;
+               }
                if (parent) {
                   var name = path.split('/').pop();
                   parent[name] = obj;

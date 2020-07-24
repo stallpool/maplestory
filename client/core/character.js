@@ -48,15 +48,17 @@ function MapleCharacter(base) {
    this.assembled = false;
    this.data = { body: {}, head: {} };
    this.sprite = new MapleSprite();
+   this.mirrorX = false;
    this.constants = {
       body: ['walk1', 'stand1', 'prone', 'jump', 'sit', 'ladder', 'rope', 'proneStab', 'alert'],
       head: ['front', 'back'],
-      back_body: ['rope', 'ladder']
+      back_body: ['rope', 'ladder'],
+      z: { body: 0, armOverHair: 4, handOverHair: 6, head: 8, arm: 10, handBelowWeapon: 20, backHead: 50 }
    };
 }
 
 MapleCharacter.prototype = {
-   Assemble: function (action) {
+   Assemble: function () {
       if (this.assembled) return Promise.resolve();
       var that = this;
       return new Promise(function (resolve) {
@@ -87,15 +89,22 @@ MapleCharacter.prototype = {
       });
    },
    _positionMatch: function (p1p, p1, p2) {
-      var mp1 = {}, mp2 = {}, p2p = {};
-      Object.keys(p1.map).forEach(function (x) { mp1[x] = 1; });
-      Object.keys(p2.map).forEach(function (x) { if (mp1[x]) mp2[x] = 1; });
-      var match = Object.keys(mp2)[0];
-      if (!match) return null;
-      p2p.x = p1p.x + p1.origin[0] + p1.map[match][0] - p2.origin[0] - p2.map[match][0];
-      p2p.y = p1p.y + p1.origin[1] + p1.map[match][1] - p2.origin[1] - p2.map[match][1];
+      var p2p = {};
+      if (p1p && p1) {
+         var mp1 = {}, mp2 = {};
+         Object.keys(p1.map).forEach(function (x) { mp1[x] = 1; });
+         Object.keys(p2.map).forEach(function (x) { if (mp1[x]) mp2[x] = 1; });
+         var match = Object.keys(mp2)[0];
+         if (!match) return null;
+         p2p.x = p1p.x + p1.origin[0] + p1.map[match][0] - p2.origin[0] - p2.map[match][0];
+         p2p.y = p1p.y + p1.origin[1] + p1.map[match][1] - p2.origin[1] - p2.map[match][1];
+      } else {
+         p2p.x = 0;
+         p2p.y = 0;
+      }
       p2p.w = p2.$data.width;
       p2p.h = p2.$data.height;
+      p2p.z = this.constants.z[p2.z] || 0;
       return p2p;
    },
    _rect: function (type, index) {
@@ -106,15 +115,21 @@ MapleCharacter.prototype = {
       }
       var body = this.data.body[type][index];
       var position = {};
-      position.head = { x: 0, y: 0, w: head.$data.width, h: head.$data.height };
+      position.head = this._positionMatch(null, null, head);
       position.body = this._positionMatch(position.head, head, body.body);
       if (body.arm) position.arm = this._positionMatch(position.body, body.body, body.arm);
       for (var part in position) {
          if (position[part].x < 0) {
-            position.forEach(function (p) { p.x -= position[part].x; });
+            Object.keys(position).forEach(function (part) {
+               var p = position[part];
+               p.x -= position[part].x;
+            });
          }
          if (position[part].y < 0) {
-            position.forEach(function (p) { p.y -= position[part].y; });
+            Object.keys(position).forEach(function (part) {
+               var p = position[part];
+               p.y -= position[part].y;
+            });
          }
       }
       var max_w = 0, max_h = 0;
@@ -125,8 +140,9 @@ MapleCharacter.prototype = {
       });
       var objs = [];
       objs.push({ u8: body.body.$u8, rect: position.body });
-      if (body.arm) objs.push({ u8: body.arm.$u8, rect: position.arm });
       objs.push({ u8: head.$u8, rect: position.head });
+      if (body.arm) objs.push({ u8: body.arm.$u8, rect: position.arm });
+      if (objs.length) objs.sort(function (a, b) { return a.rect.z - b.rect.z; });
       return { w: max_w, h: max_h, objs: objs};
    },
    Paint: function (type, index) {
@@ -141,13 +157,26 @@ MapleCharacter.prototype = {
       this.paper.height = vis.h;
       this.paper.style.width = vis.w + 'px';
       this.paper.style.height = vis.h + 'px';
+      if (this.mirrorX) {
+         this.pen.save();
+         this.pen.scale(-1, 1);
+         this.pen.translate(-vis.w, 0);
+      }
       vis.objs.forEach(function (obj) {
          var sprite = new MapleSprite(obj.u8, obj.rect.w, obj.rect.h);
          that.pen.drawImage(sprite.paper, obj.rect.x, obj.rect.y);
       });
+      if (this.mirrorX) {
+         this.pen.restore();
+      }
       this.image = this.pen.getImageData(0, 0, vis.w, vis.h);
       this.w = vis.w;
       this.h = vis.h;
+   },
+   GetBody: function (type, index) {
+      if (!this.assembled) return null;
+      var body = this.data.body[type][index];
+      return body;
    },
    Image: function () {
       return this.image;
