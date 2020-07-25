@@ -8,7 +8,7 @@
    <script src="./core/character.js"></script>
    <script>
       // the test.html uses wz from v062
-      var env = { action: 'stand1' };
+      var env = { action: 'stand1', bitmap: { stand: 1, left: 0, right: 0, prone: 0, jump: 0 } };
       var test = new MapleSound('/Sound.wz/Bgm02.img/MissingYou');
       function soundPlay () {
          test.Play();
@@ -43,30 +43,23 @@
             var img = char.Image();
             var index = 0;
             var lastAction, val;
-            next();
+            env.canvas = canvas;
+            env.pen = pen;
             document.body.appendChild(canvas);
-
-            function next() {
-               if (env.action !== lastAction) {
-                  index = 0;
-                  var a = char.data.body[env.action];
-                  val = Object.keys(a);
-               }
-               var body = char.GetBody(env.action, val[index]);
-               char.Paint(env.action, val[index]);
-               lastAction = env.action;
-               canvas.style.position = 'absolute';
-               canvas.width = char.w;
-               canvas.height = char.h;
-               canvas.style.width = char.w + 'px';
-               canvas.style.height = char.h + 'px';
-               pen.clearRect(0, 0, char.w, char.h);
-               char.mirrorX = !!env.faceDirection;
-               pen.putImageData(char.Image(), 0, 0);
-               index = (index + 1) % val.length;
-               setTimeout(function () { next(); }, body.delay);
-            }
+            env.lastAction = 'stand1';
+            env.char.Animate('stand1', animate);
          });
+      }
+
+      function animate(char) {
+         if (!env.canvas || !env.pen) return;
+         env.canvas.style.position = 'absolute';
+         env.canvas.width = char.w;
+         env.canvas.height = char.h;
+         env.canvas.style.width = char.w + 'px';
+         env.canvas.style.height = char.h + 'px';
+         env.pen.clearRect(0, 0, char.w, char.h);
+         env.pen.putImageData(char.Image(), 0, 0);
       }
 
       document.body.addEventListener('click', function (evt) {
@@ -92,18 +85,28 @@
             if (env.jump) return;
             switch(evt.code) {
             case 'ArrowLeft':
+               if (!env.bitmap.left) return;
                if (!env.move) return;
-               if (env.move.offsetLeft <= 0) return;
-               env.action = 'stand1';
+               env.bitmap.left = 0;
+               env.bitmap.stand = 1;
+               env.lastAction = 'stand1';
+               env.char.Animate('stand1', animate);
                return;
             case 'ArrowRight':
+               if (!env.bitmap.right) return;
                if (!env.move) return;
-               if (env.move.offsetLeft + env.move.offsetWidth >= window.innerWidth) return;
-               env.action = 'stand1';
+               env.bitmap.right = 0;
+               env.bitmap.stand = 1;
+               env.lastAction = 'stand1';
+               env.char.Animate('stand1', animate);
                return;
             case 'ArrowDown':
+               if (!env.bitmap.prone) return;
                if (!env.move) return;
-               env.action = 'stand1';
+               env.bitmap.prone = 0;
+               env.bitmap.stand = 1;
+               env.lastAction = 'stand1';
+               env.char.Animate('stand1', animate);
                return;
             }
          }
@@ -138,27 +141,46 @@
             if (env.jump) return;
             switch(evt.code) {
             case 'ArrowLeft':
+               if (env.bitmap.prone) return;
                if (env.move.offsetLeft <= 0) return;
-               env.faceDirection = 0;
-               env.action = 'walk1';
                env.move.style.left = (env.move.offsetLeft - 10) + 'px';
+               env.char.mirrorX = false;
+               if (env.lastAction === 'walk1') return;
+               env.lastAction = 'walk1';
+               Object.keys(env.bitmap).forEach(function (x) { env.bitmap[x] = 0; });
+               env.bitmap.left = 1;
+               env.char.Animate('walk1', animate);
                return;
             case 'ArrowRight':
+               if (env.bitmap.prone) return;
                if (env.move.offsetLeft + env.move.offsetWidth >= window.innerWidth) return;
-               env.faceDirection = 1;
-               env.action = 'walk1';
                env.move.style.left = (env.move.offsetLeft + 10) + 'px';
+               env.char.mirrorX = true;
+               if (env.lastAction === 'walk1') return;
+               env.lastAction = 'walk1';
+               Object.keys(env.bitmap).forEach(function (x) { env.bitmap[x] = 0; });
+               env.bitmap.right = 1;
+               env.char.Animate('walk1', animate);
                return;
             case 'ArrowUp':
-               env.jump = 1;
-               env.action = 'jump';
+               if (env.bitmap.prone) return;
+               if (env.lastAction === 'jump') return;
+               env.lastAction = 'jump';
+               Object.keys(env.bitmap).forEach(function (x) { env.bitmap[x] = 0; });
+               env.bitmap.jump = 1;
+               env.char.Animate('jump', animate);
                setTimeout(function () {
-                  env.jump = 0;
-                  env.action = 'stand1';
+                  env.bitmap.jump = 0;
+                  env.bitmap.stand = 1;
+                  env.char.Animate('stand1', animate);
                }, 2000);
                return;
             case 'ArrowDown':
-               env.action = 'prone';
+               if (env.lastAction === 'prone') return;
+               env.lastAction = 'prone';
+               Object.keys(env.bitmap).forEach(function (x) { env.bitmap[x] = 0; });
+               env.bitmap.prone = 1;
+               env.char.Animate('prone', animate);
                return;
             }
          }

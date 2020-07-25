@@ -41,6 +41,38 @@ MapleSprite.prototype = {
    }
 };
 
+function MapleAnimation(constants, frameFn) {
+   this.frameFn = frameFn;
+   this.env = {
+      constants: constants,
+      timer: 0,
+      sprite: null,
+      index: 0,
+      delay: 100
+   };
+}
+
+MapleAnimation.prototype = {
+   Next: function () {
+      this.frameFn(this.env);
+   },
+   Sprite: function () {
+      return this.env.sprite;
+   },
+   Start: function () {
+      next(this);
+
+      function next(that) {
+         that.env.timer = 0;
+         that.Next();
+         that.env.timer = setTimeout(next, that.env.delay || 100, that);
+      }
+   },
+   Stop: function () {
+      if (this.env.timer) clearTimeout(this.env.timer);
+   }
+};
+
 function MapleCharacter(base) {
    // base = e.g. 2002.img
    // - body = 00002002.img, head = 00012002.img
@@ -49,11 +81,12 @@ function MapleCharacter(base) {
    this.data = { body: {}, head: {} };
    this.sprite = new MapleSprite();
    this.mirrorX = false;
+   this.animate = null;
    this.constants = {
       body: ['walk1', 'stand1', 'prone', 'jump', 'sit', 'ladder', 'rope', 'proneStab', 'alert'],
       head: ['front', 'back'],
       back_body: ['rope', 'ladder'],
-      z: { body: 0, armOverHair: 4, handOverHair: 6, head: 8, arm: 10, handBelowWeapon: 20, backHead: 50 }
+      z: { body: 0, armOverHair: 4, handOverHair: 6, head: 8, face: 12, arm: 15, handBelowWeapon: 20, backHead: 50 }
    };
 }
 
@@ -177,6 +210,21 @@ MapleCharacter.prototype = {
       if (!this.assembled) return null;
       var body = this.data.body[type][index];
       return body;
+   },
+   Animate: function (type, postFn) {
+      if (this.animate) this.animate.Stop();
+      this.animate = new MapleAnimation({
+         char: this,
+         frameIndex: Object.keys(this.data.body[type]),
+         action: type,
+      }, function (env) {
+         var body = env.constants.char.GetBody(type, env.constants.frameIndex[env.index]);
+         env.delay = body.delay;
+         env.constants.char.Paint(type, env.constants.frameIndex[env.index]);
+         if (postFn) postFn(env.constants.char);
+         env.index = (env.index + 1) % env.constants.frameIndex.length;
+      });
+      this.animate.Start();
    },
    Image: function () {
       return this.image;
