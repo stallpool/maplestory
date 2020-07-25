@@ -179,8 +179,9 @@
                jump({ index: 0, base: env.move.offsetTop, ceil: 50 });
 
                function jump(jump_env) {
+                  var frame_count = 8, half_fc = frame_count / 2;
                   var x = jump_env.index;
-                  if (jump_env.index > 10) {
+                  if (jump_env.index > frame_count) {
                      env.bitmap.jump = 0;
                      env.bitmap.left = 0;
                      env.bitmap.right = 0;
@@ -189,7 +190,7 @@
                      changeAnimate('stand1');
                      return;
                   }
-                  var top = jump_env.base + (x - 5) * (x - 5) - jump_env.ceil;
+                  var top = jump_env.base - (1 - (x - half_fc) * (x - half_fc) / half_fc / half_fc) * jump_env.ceil;
                   env.move.style.top = top + 'px';
                   if (env.bitmap.left) {
                      env.char.mirrorX = false;
