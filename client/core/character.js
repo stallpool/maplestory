@@ -226,6 +226,12 @@ MapleCharacter.prototype = {
       });
       this.animate.Start();
    },
+   GetOrigin: function () {
+      return { x: this.w / 2, y: this.h };
+   },
+   AlignOrigin: function (x, y) {
+      return { x: x - this.w / 2, y: y - this.h };
+   },
    Image: function () {
       return this.image;
    },
