@@ -1,9 +1,3 @@
 [submodule "server/wz"]
 	path = server/wz
 	url = https://github.com/dna2fork/wz
-[submodule "server/libwebsockets"]
-	path = server/libwebsockets
-	url = https://github.com/dna2fork/libwebsockets
-[submodule "server/libuv"]
-	path = server/libuv
-	url = https://github.com/dna2fork/libuv
