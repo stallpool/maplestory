@@ -61,7 +61,7 @@
       var div = document.createElement('div');
       switch (obj.type) {
          case 'image':
-            var sprite = new MapleSprite(obj.u8, obj.data.width, obj.data.height);
+            var sprite = new MapleSprite(obj.u8, obj.w, obj.h);
             var img = document.createElement('img');
             img.src = sprite.ImageURLBlob();
             div.appendChild(img);
@@ -100,12 +100,13 @@
             _MapleCache[path] = obj;
             switch (obj.type) {
                case 'image':
-                  obj = obj.nested;
                   showMapleTreeNode(evt);
                   // fall through
                case 'array':
-                  for (var i = 0; i < obj.data.length; i ++) {
-                     var name = obj.data[i];
+               case 'obj':
+               case 'root':
+                  for (var i = 0; i < obj.items.length; i ++) {
+                     var name = obj.items[i];
                      var node = newMapleTreeNode(name, path + '/' + name);
                      childrenPanel.appendChild(node.self);
                   }

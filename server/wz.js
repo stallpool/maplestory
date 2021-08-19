@@ -26,8 +26,7 @@ const api = {
          if (!node) return serveCode(req, res, 404);
          try { await resF._close(); } catch(err) {}
          let obj;
-console.log(node.type, node.val);
-console.log(node.children && node.children.map((x) => x.name));
+         res.setHeader('Content-Type', 'application/json');
          switch(node.type) {
          case 'nil':
             res.end('{"type":"nil"}'); break;
@@ -57,6 +56,14 @@ console.log(node.children && node.children.map((x) => x.name));
          case null:
             obj = { type: node.type || 'root' };
             obj.items = node.children?node.children.map((x) => x.name):[];
+            res.end(JSON.stringify(obj)); break;
+         case 'i16':
+         case 'i32':
+         case 'i64':
+         case 'f32':
+         case 'f64':
+         case 'str':
+            obj = { type: node.type, data: node.val };
             res.end(JSON.stringify(obj)); break;
          default:
             return serveCode(req, res, 404);
