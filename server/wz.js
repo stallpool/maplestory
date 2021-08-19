@@ -1,6 +1,6 @@
 const i_path = require('path');
 const i_fs = require('fs');
-const i_wz = require('./wz/js/wz');
+const i_wz = require('./lib/wz');
 
 const RES_DIR = i_path.resolve(process.env.MAPLESTORY_RES_DIR || '.');
 
