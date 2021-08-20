@@ -1092,8 +1092,8 @@ class WzFile {
             else if (fmt === 0x01) inplace = 0;
             break;
          case WZ_LV1_TYPENAME:
-            if (fmt === 0x1b) inplace = 1;
-            else if (fmt === 0x73) inplace = 0;
+            if (fmt === 0x1b) inplace = 0;
+            else if (fmt === 0x73) inplace = 1;
             break;
          case WZ_LV1_TYPENAME_OR_STR:
             if (fmt === 0x01) inplace = 1;
@@ -1380,7 +1380,6 @@ class WzFile {
       for (let i = 0, n = parts.length; i < n; i++) {
          const name = parts[i];
          if (!name) continue;
-         console.log('->', name);
          if (cur.flags & (WZ_LEVEL | WZ_LEAF)) {
             await cur.wz_read_lv1();
          } else {

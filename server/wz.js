@@ -16,6 +16,7 @@ const api = {
       if (parts.indexOf('..') >= 0) return serveCode(req, res, 400);
       const name = parts.shift();
       const path = `/${parts.join('/')}`;
+      console.log(`[get] ${name} ${path}`);
       const res_p = i_path.join(RES_DIR, name);
       if (!i_fs.existsSync(res_p)) return serveCode(req, res, 404);
       let resF;
