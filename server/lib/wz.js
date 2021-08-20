@@ -1069,12 +1069,12 @@ class WzFile {
    async readFloat32() {
       const buf = await fileOp.read(this.fd, 4);
       this.pos += 4;
-      return buf.readFloatLE(buf);
+      return buf.readFloatLE(0);
    }
    async readFloat64() {
       const buf = await fileOp.read(this.fd, 8);
       this.pos += 8;
-      return buf.readDoubleLE(buf);
+      return buf.readDoubleLE(0);
    }
    async readFloat() {
       const int8 = await this.readInt8();
