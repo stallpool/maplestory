@@ -25,9 +25,8 @@ git submodule update --init
 - Segmentation Fault:
    - Partial List:
       - v062
-         - --`/String.wz/Consume.img`--
-         - --`/String.wz/Item.img/Etc`--
-         - --`/Quest.wz/Say.img`--
-         - `/List.wz` (confirm it is not a common wz file; no header)
-         - --`/Item.wz/Consume/0202.img`--
-      - after move to pure js server, fix many segmentation fault
+         - `Quest.wz /QuestInfo.img/10001`: unsupported primitive type: 133
+         - `List.wz` (confirm it is not a common wz file; no header)
+         - `Quest.wz /PQuest.img/*/<name_in_utf8>`: url encoded name not recognized by lib/wz.js
+         - `Quest.wz /Act.img/10001/0`: unsupported primitive type: 138
+         - `String.wz /EULA.img/EULA`: unsupported primitive type: 135
