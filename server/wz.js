@@ -11,7 +11,8 @@ function serveCode(req, res, code, text) {
 
 const api = {
    res: async (req, res, opt) => {
-      const parts = opt.path;
+      // decodeURIComponent to deal with utf8 node name
+      const parts = opt.path.map((x) => decodeURIComponent(x));
       if (!parts.length) return serveCode(req, res, 404);
       if (parts.indexOf('..') >= 0) return serveCode(req, res, 400);
       const name = parts.shift();
