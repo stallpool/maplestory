@@ -20,6 +20,7 @@ const WZ_KEY_UTF8_MAX_LEN = 0x12000;
 const WZ_UINT8_MAX = 0xff;
 const WZ_UINT16_MAX = 0xffff;
 const WZ_INT8_MIN = -128;
+const WZ_INT8_MAX = 127;
 
 const WZ_LV0_NAME = 0;
 const WZ_LV1_NAME = 1;
@@ -1136,7 +1137,7 @@ class WzFile {
          }
          if (enc === 'auto') enc = 'cp1252';
       } else { // utf16le
-         if (tmp === WZ_INT8_MIN) {
+         if (tmp === WZ_INT8_MAX) {
             len = await this.readUint32();
          } else {
             len = tmp;
