@@ -65,7 +65,7 @@ MapleAnimation.prototype = {
       function next(that) {
          that.env.timer = 0;
          that.Next();
-         that.env.timer = setTimeout(next, that.env.delay || 100, that);
+         that.env.timer = setTimeout(next, that.env.delay.data || 100, that);
       }
    },
    Stop: function () {
@@ -97,13 +97,13 @@ MapleCharacter.prototype = {
       return new Promise(function (resolve) {
          that.constants.body.forEach(function (type) {
             MapleResourceManager.GetTree('/Character.wz/0000' + that.base + '.img/' + type).then(function (data) {
-               that.data.body[type] = data.tree;
+               that.data.body[type] = data;
                assemble();
             });
          });
          that.constants.head.forEach(function (type) {
             MapleResourceManager.GetTree('/Character.wz/0001' + that.base + '.img/' + type + '/head').then(function (data) {
-               that.data.head[type] = data.tree;
+               that.data.head[type] = data;
                assemble();
             });
          });
@@ -129,14 +129,14 @@ MapleCharacter.prototype = {
          Object.keys(p2.map).forEach(function (x) { if (mp1[x]) mp2[x] = 1; });
          var match = Object.keys(mp2)[0];
          if (!match) return null;
-         p2p.x = p1p.x + p1.origin[0] + p1.map[match][0] - p2.origin[0] - p2.map[match][0];
-         p2p.y = p1p.y + p1.origin[1] + p1.map[match][1] - p2.origin[1] - p2.map[match][1];
+         p2p.x = p1p.x + p1.origin.x + p1.map[match].x - p2.origin.x - p2.map[match].x;
+         p2p.y = p1p.y + p1.origin.y + p1.map[match].y - p2.origin.y - p2.map[match].y;
       } else {
          p2p.x = 0;
          p2p.y = 0;
       }
-      p2p.w = p2.$data.width;
-      p2p.h = p2.$data.height;
+      p2p.w = p2.$data.w;
+      p2p.h = p2.$data.h;
       p2p.z = this.constants.z[p2.z] || 0;
       return p2p;
    },
@@ -172,9 +172,9 @@ MapleCharacter.prototype = {
          if (p.y + p.h > max_h) max_h = p.y + p.h;
       });
       var objs = [];
-      objs.push({ u8: body.body.$u8, rect: position.body });
-      objs.push({ u8: head.$u8, rect: position.head });
-      if (body.arm) objs.push({ u8: body.arm.$u8, rect: position.arm });
+      objs.push({ u8: body.body.$data.u8, rect: position.body });
+      objs.push({ u8: head.$data.u8, rect: position.head });
+      if (body.arm) objs.push({ u8: body.arm.$data.u8, rect: position.arm });
       if (objs.length) objs.sort(function (a, b) { return a.rect.z - b.rect.z; });
       return { w: max_w, h: max_h, objs: objs};
    },
@@ -261,8 +261,8 @@ MapleCharacterSimple.prototype = {
       var w = 0, h = 0;
       for (var key in this.assembled) {
          var obj = this.assembled[key];
-         if (obj.x + obj.data.width > w) w = obj.x + obj.data.width;
-         if (obj.y + obj.data.height > h) h = obj.y + obj.data.height;
+         if (obj.x + obj.w > w) w = obj.x + obj.w;
+         if (obj.y + obj.h > h) h = obj.y + obj.h;
       }
       this.w = w;
       this.h = h;
@@ -319,7 +319,7 @@ MapleCharacterSimple.prototype = {
       this.paper.style.width = this.w + 'px';
       this.paper.style.height = this.h + 'px';
       list.forEach(function (obj) {
-         var sprite = new MapleSprite(obj.u8, obj.data.width, obj.data.height);
+         var sprite = new MapleSprite(obj.u8, obj.w, obj.h);
          that.pen.drawImage(sprite.paper, obj.x, obj.y);
       });
       this.image = this.pen.getImageData(0, 0, this.w, this.h);

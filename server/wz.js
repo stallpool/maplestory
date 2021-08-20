@@ -48,14 +48,14 @@ const api = {
          case 'vector':
             obj = Object.assign({ type: 'vector' }, node.val);
             res.end(JSON.stringify(obj)); break;
-         case 'uol':
-            obj = Object.assign({ type: 'uol' }, node.val);
-            res.end(JSON.stringify(obj)); break;
          case 'array':
          case 'obj':
          case null:
             obj = { type: node.type || 'root' };
             obj.items = node.children?node.children.map((x) => x.name):[];
+            res.end(JSON.stringify(obj)); break;
+         case 'uol':
+            obj = { type: node.type, ref: node.val };
             res.end(JSON.stringify(obj)); break;
          case 'i16':
          case 'i32':

@@ -48,90 +48,69 @@ MapleResource.prototype = {
          }, e);
       });
    },
-   GetTree: function (path) {
+   GetTree: function (path, treenode) {
       // be careful to use this function
       // for it may cause out of memory if the tree is huge
       // obj = { type: undfined/image/audio, children }
       var that = this;
       var errors = [];
-      return new Promise(function (resolve) {
-         that.getTreeNode(null, errors, path).then(function (node) {
-            resolve({ tree: node, errors: errors });
-         });
-      });
-   },
-   getTreeNode: function (parent, errors, path) {
-      var that = this;
-      return new Promise(function (resolve) {
-         var obj = {};
+      treenode = treenode || {};
+      return new Promise(function (r, e) {
          that.Get(path).then(function (node) {
-            var queue;
-            switch (node.type) {
-               case 'image':
-                  queue = node.nested.data.map(function (x) {
-                     return path + '/' + x;
-                  });
-                  obj.$data = node.data;
-                  obj.$u8 = node.u8;
-                  obj.$type = 'image';
-                  break;
-               case 'array':
-                  queue = node.data.map(function (x) {
-                     return path + '/' + x;
-                  });
-                  break;
-               case 'audio':
-                  queue = [];
-                  obj.$data = node.data;
-                  obj.$u8 = node.u8;
-                  obj.$type = 'audio';
-                  break;
-               default:
-                  queue = [];
-                  obj = node.data;
-            }
-            that.getTreeChildren(obj, errors, queue, function () {
-               if (obj._inlink) {
-                  // e.g. walk1/2/arm _inlink = walk1/0/arm
-                  var linkParts = obj._inlink.split('/');
+            switch(node.type) {
+            case 'image': case 'audio': case 'root':
+            case 'array': case 'obj':
+               if (node.type === 'image') {
+                  treenode.$data = Object.assign({}, node);
+                  treenode.$type = node.type;
+               } else if (node.type === 'audio') {
+                  treenode.$type = node.type;
+               }
+               if (treenode.$data) {
+                  delete treenode.$data.items;
+                  delete treenode.$data.type;
+               }
+               getChild(path, node.items.slice(), treenode, r, e);
+               break;
+            case 'uol':
+               {
+                  var linkParts = node.ref.split('/');
                   var pathParts = path.split('/');
-                  for (var i = linkParts.length - 1, j = pathParts.length - 1; i >= 0 && j >= 0; i--) {
-                     pathParts[j] = linkParts[i];
-                     j --;
-                  }
-                  that.getTreeNode(parent, errors, pathParts.join('/')).then(function (node) {
-                     if (parent) {
-                        var name = path.split('/').pop();
-                        parent[name] = obj;
+                  pathParts.pop();
+                  for (var i = 0, n = linkParts.length; i < n; i++) {
+                     var one = linkParts[i];
+                     if (one === '..') {
+                        pathParts.pop();
+                     } else if (one === '.') {
+                     } else {
+                        pathParts.push(one);
                      }
-                     resolve(node);
-                  });
-                  return;
+                  }
+                  var newpath = pathParts.join('/');
+                  // for (let key in treenode) delete treenode[key];
+                  that.GetTree(newpath, treenode).then(r, e);
                }
-               if (parent) {
-                  var name = path.split('/').pop();
-                  parent[name] = obj;
-               }
-               resolve(obj);
-            });
-         }, function () {
-            errors.push({ path: path });
-            resolve(null);
-         });
+               break;
+            default:
+               treenode = Object.assign(treenode, node);
+               delete treenode.type;
+               r(treenode);
+            }
+         }, e);
+
+         function getChild(base, items, treenode, r, e) {
+            if (!items.length) {
+               r(treenode);
+               return;
+            }
+            var name = items.shift();
+            that.GetTree(base + '/' + name).then(function (child_treenode) {
+               treenode[name] = child_treenode;
+               getChild(base, items, treenode, r, e);
+            }, e);
+         }
       });
    },
-   getTreeChildren: function (parent, errors, queue, resolveFn) {
-      var that = this;
-      if (!queue.length) {
-         return resolveFn();
-      }
-      var path = queue.shift();
-      that.getTreeNode(parent, errors, path).then(function (node) {
-         var name = path.split('/').pop();
-         parent[name] = node;
-         that.getTreeChildren(parent, errors, queue, resolveFn);
-      });
-   }
 };
 
 window.MapleResourceManager = new MapleResource();
