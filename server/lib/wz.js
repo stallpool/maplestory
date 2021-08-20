@@ -908,17 +908,24 @@ class WzNode {
       }
       const entities = [];
       for (let i = 0; i < entityN; i++) {
-         const type = await this.file.readByte();
+         let linkedPos = -1;
+         let type = await this.file.readByte();
          switch (type) {
          case 0x02: { // LINK
             const offset = await this.file.readUint32();
-            entities.push({
-               type: 'link',
-               pos: basePos + offset,
-               enc: 0
-            });
-            // TODO: jump to the offset and read
-            break;
+            linkedPos = this.file.pos;
+            await this.file._seek(basePos + offset);
+            type = await this.file.readByte();
+            if (type === 0x01) {
+               this.file.read(10); // unknown 10 bytes
+               entities.push({
+                  type: 'nil',
+                  enc: 0,
+                  flags: WZ_EMBED | WZ_NIL | WZ_LEAF
+               });
+               break;
+            }
+            // fall through
          }
          case 0x03: // ARR
          case 0x04: // OBJ
@@ -926,6 +933,7 @@ class WzNode {
             const p = await this.file.readString(WZ_LV0_NAME, key_i, 42, 0);
             const name = p[0];
             const name_enc = p[1];
+            if (linkedPos >= 0) await this.file._seek(linkedPos);
             const _size = await this.file.readInt();
             const _check = await this.file.readInt();
             const addr_pos = this.file.pos;
@@ -1251,23 +1259,31 @@ class WzFile {
       if (!entityN) return false;
       const entities = [];
       for (let i = 0; i < entityN; i++) {
-         const type = await this.readByte();
+         let linkedPos = -1;
+         let type = await this.readByte();
          switch (type) {
          case 0x02: { // LINK
             const offset = await this.readUint32();
-            entities.push({
-               type: 'link',
-               pos: basePos + offset,
-               enc: 0
-            });
-            // TODO: jump to the offset and read
-            break;
+            linkedPos = this.pos;
+            await this._seek(basePos + offset);
+            type = await this.readByte();
+            if (type === 0x01) {
+               await this.read(10); // unknown 10 bytes
+               entities.push({
+                  type: 'nil',
+                  enc: 0,
+                  flags: WZ_EMBED | WZ_NIL | WZ_LEAF
+               });
+               break;
+            }
+            // fall through
          }
          case 0x03: // ARR
          case 0x04: { // OBJ
             const p = await this.readString(WZ_LV0_NAME, 0xff, 42, 0);
             const name = p[0];
             const name_enc = p[1];
+            if (linkedPos >= 0) await this._seek(linkedPos);
             const _size = await this.readInt();
             const _check = await this.readInt();
             const addr_pos = this.pos;
@@ -1283,7 +1299,7 @@ class WzFile {
             break;
          }
          case 0x01: // NIL
-            this.read(10); // unknown 10 bytes
+            await this.read(10); // unknown 10 bytes
             entities.push({
                type: 'nil',
                enc: 0,
