@@ -43,9 +43,6 @@ const api = {
             obj = Object.assign({ type: 'audio' }, node.val);
             obj.data = obj.data.toString('base64');
             res.end(JSON.stringify(obj)); break;
-         case 'convex':
-            obj = Object.assign({ type: 'convex' }, node.val);
-            res.end(JSON.stringify(obj)); break;
          case 'vector':
             obj = Object.assign({ type: 'vector' }, node.val);
             res.end(JSON.stringify(obj)); break;
@@ -64,6 +61,7 @@ const api = {
          case 'f32':
          case 'f64':
          case 'str':
+         case 'convex':
             obj = { type: node.type, data: node.val };
             res.end(JSON.stringify(obj)); break;
          default:
