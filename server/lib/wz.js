@@ -12,7 +12,7 @@ const wz_aes_key = [
 const wz_aes_ivs = [
   /* These values would be expanded to aes ivs */
   0x2bc7234d,
-  0xe9637db9 /* used to decode UTF8 (lua script) */
+  0xe9637db9, /* used to decode UTF8 (lua script) */
 ];
 const WZ_KEY_ASCII_MAX_LEN = 0x10000;
 // enlarge max len to accept long string
@@ -483,7 +483,7 @@ function wz_init_ctx() {
    for (i = 0; i < 32; i += 4) aes_key[i] = wz_aes_key[i/4];
    const keys = [
       Buffer.alloc(WZ_KEY_UTF8_MAX_LEN),
-      Buffer.alloc(WZ_KEY_UTF8_MAX_LEN)
+      Buffer.alloc(WZ_KEY_UTF8_MAX_LEN),
    ];
    for (i = 0; i < wz_aes_ivs.length; i++) {
       const aes_iv4 = wz_aes_ivs[i];
@@ -528,7 +528,9 @@ function wz_decode_chars(buf, enc, key_i) {
    let min_len = 0;
    switch(enc) {
    case 'cp1252': {
-      if (buf.length <= WZ_KEY_ASCII_MAX_LEN) {
+      if (key_i === WZ_KEYS.length) {
+         min_len = 0;
+      } else if (buf.length <= WZ_KEY_ASCII_MAX_LEN) {
          min_len = buf.length;
       } else {
          min_len = WZ_KEY_ASCII_MAX_LEN;
@@ -548,6 +550,7 @@ function wz_decode_chars(buf, enc, key_i) {
       if (buf.length > WZ_KEY_ASCII_MAX_LEN) return false;
       const len = buf.length >>> 1;
       min_len = len;
+      if (key_i === WZ_KEYS.length) min_len = 0;
       let mask16 = 0xaaaa;
       for (let i = 0; i < min_len; i++) {
          const i2 = i * 2;
@@ -1331,7 +1334,7 @@ class WzFile {
                over = 1;
                break;
             }
-            entity.pos = addr_dec;
+            entity.pos_ = addr_dec;
          }
          if (!over) {
             guessed = 1;
@@ -1339,6 +1342,7 @@ class WzFile {
          }
       }
       if (!guessed) throw 'cannot decode file (dec error)';
+      entities.forEach((x) => { x.pos = x._pos; delete x._pos; });
       key = 0xff;
       for (let i = 0; i < entityN; i ++) {
          const entity = entities[i];
